@@ -7,8 +7,8 @@
 <EditForm Model="cobros">
     <DataAnnotationsValidator />
 
-    <div class="container mx-auto">
-        <div class="card w-50">
+    <div class="container">
+        <div class="card w-100">
 
             <div class="card-header">
                 <h3>Registro de cobros</h3>
@@ -73,7 +73,6 @@
                                 <th>Fecha</th>
                                 <th>Monto</th>
                                 <th>Balance</th>
-                                <th>Cobrado</th>
                                 <th>Pagar</th>
                             </tr>
                         </thead>
@@ -86,8 +85,9 @@
                                     <td>@ventaSeleccionada.Fecha</td>
                                     <td>@ventaSeleccionada.Monto</td>
                                     <td>@ventaSeleccionada.Balance</td>
-                                    <td>@cobrosDetalle.Cobrado</td>
+                                    <td>
                                     <td><input class="form-check-input" type="checkbox" id="Pagar" @bind-value="cobrosDetalle.Pagar" @onclick="() => ActualizarCobrado(ventaSeleccionada)"></td>
+                                    </td>
                                 </tr>
                             }
                             else
@@ -98,7 +98,6 @@
                             }
                         </tbody>
                     </table>
-
                     <div class="col-2">
                         <br />
                         <button type="button" class="btn btn-primary input-group-text" @onclick="AgregarDetalle">
@@ -106,7 +105,7 @@
                         </button>
                     </div>
                 </div>
-
+                <br>
                 <!-- DETALLE -->
                 <fieldset class="border-success border border-3">
                     <table class="table table-bordered table-light m-1">
@@ -129,7 +128,7 @@
                                     <td>@detalle.ClienteId</td>
                                     <td>@(MontoVenta(detalle.VentaId))</td>
                                     <td>@(BalanceVenta(detalle.VentaId))</td>
-                                    <td>@cobrosDetalle.Cobrado</td>
+                                    <td>@detalle.Cobrado</td>
                                 </tr>
                             }
                         </tbody>
@@ -174,10 +173,14 @@
      public int VentaId { get; set; }
      public Cobros cobros { get; set; } = new Cobros();
      public Ventas venta { get; set; } = new Ventas();
+      public CobrosDetalle detalle { get; set; } = new CobrosDetalle();
      public Clientes cliente { get; set; } = new Clientes();
      public CobrosDetalle cobrosDetalle { get; set; } = new CobrosDetalle();
      public List<Ventas> L_Ventas { get; set; } = new List<Ventas>();
      public List<Clientes> L_Clientes { get; set; } = new List<Clientes>();
+     public List<CobrosDetalle> L_Detalle{ get; set; } = new List<CobrosDetalle>();
+    private Dictionary<int, bool> pagosIndividuales = new Dictionary<int, bool>();   
+
 
     public IEnumerable<Clientes> listaClientes { get; set; } = Enumerable.Empty<Clientes>();
     public IEnumerable<Ventas> listaVentas { get; set; } = Enumerable.Empty<Ventas>();
@@ -258,6 +261,9 @@ public async Task Buscar()
         if (cobroEncontrado != null)
         {
             this.cobros = cobroEncontrado;
+
+            TotalFacturas = cobrosDetalle.TotalFacturas;
+            TotalCobros = cobrosDetalle.TotalCobrado;
             StateHasChanged();
         }
         else
@@ -314,6 +320,8 @@ public async Task Guardar()
         VentaSeleccionada = 0;
         TotalCobros = 0;
         TotalFacturas= 0;
+        TotalFacturas = 0;
+       
         
         
     }
@@ -375,49 +383,69 @@ public async Task Guardar()
         return balance!.Balance;
     }
 
+    public double CobradoDetalle(int DetalleId)
+    {
+        var cobrado = L_Detalle.FirstOrDefault(p => p.DetalleId == DetalleId);
 
-        public void ActualizarCobrado(Ventas venta)
+        return cobrado !.Cobrado; 
+    }
+
+
+            public void ActualizarCobrado(Ventas venta)
     {   
         aux2 = TotalCobros;
         aux = cobrosDetalle.Cobrado;
-        if (cobrosDetalle.Pagar == false)
+
+        if (!GetPagarValue(venta))
         {
-          /*  cobrosDetalle.Cobrado = venta.Balance;
+            cobrosDetalle.Cobrado = venta.Balance;
             venta.Balance = 0;
             TotalCobros += cobrosDetalle.Cobrado;
-            TotalFacturas++;*/
+            TotalFacturas++;
         }
         else
         {
-           /* venta.Balance = aux;
+            venta.Balance = aux;
             cobrosDetalle.Cobrado = 0;
             L_Ventas.Remove(venta);
             TotalFacturas--;
-            TotalCobros -= venta.Balance;*/
+            TotalCobros -= venta.Balance;
         }
 
-            cobrosDetalle.VentaId = venta.VentaId;
-            cobrosDetalle.TotalFacturas = TotalFacturas;
-            cobrosDetalle.TotalCobrado = TotalCobros;
-            cobrosDetalle.CobroId = cobros.CobroId; 
-        }
-
+        cobrosDetalle.VentaId = venta.VentaId;
+        cobrosDetalle.CobroId = cobros.CobroId; 
+        SetPagarValue(venta, false);
+    }
 
         public async Task Eliminar()
+    {
+        using var response = await httpClient.DeleteAsync($"api/Cobros/{cobros.CobroId}");
+        if (!response.IsSuccessStatusCode)
         {
-            using var response = await httpClient.DeleteAsync($"api/Cobros/{cobros.CobroId}");
-            if (!response.IsSuccessStatusCode)
-            {
-                
-                return;
-            }
-            else
-                Nuevo();
+
+            return;
+        }
+        else
+            Nuevo();
+            Nuevo();
+  
+    }
+
+    private bool GetPagarValue(Ventas venta)
+    {
+        if (!pagosIndividuales.ContainsKey(venta.VentaId))
+        {
+            pagosIndividuales[venta.VentaId] = false;
         }
 
+        return pagosIndividuales[venta.VentaId];
+    }
 
-
-
+    private void SetPagarValue(Ventas venta, bool value)
+    {
+        pagosIndividuales[venta.VentaId] = value;
+        StateHasChanged();
+    }
 
   
 }

@@ -18,8 +18,7 @@
                 <thead>
                     <tr>
                         <th>Cobro Id</th>
-                        <th>Nombres</th>
-                        <th></th>
+                        <th>Asunto</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -28,8 +27,6 @@
                         <tr>
                             <td>@cobros.CobroId</td>
                             <td>@cobros.Observacion</td>
-
-                            <td><a href="Cobros/@cobros.CobroId">Ver</a></td>
                         </tr>
                     }
 
@@ -37,14 +34,7 @@
 
             </table>
         }
-    </div>
-    <div class="card-footer">
-        <div class="form-row justify-content-sm-between" aria-orientation="vertical">
-            <div class="col-3">
-                <label for="CantidaRegistro" class="col-form-label"><strong>Filas</strong>&nbsp;</label>
-                <input id="CantidaRegistro" @bind-value="@conteo" disabled class="form-control" />
-            </div>
-        </div>
+ 
     </div>
 </div>
 
@@ -54,15 +44,20 @@
 
 @code {
     public List<Cobros>? Cobros { get; set; }
-    public int conteo { get; set; }
 
-    public async Task Buscar()
+
+public async Task Buscar()
+{
+    try
     {
         Cobros = await httpClient.GetFromJsonAsync<List<Cobros>>($"api/Cobros");
-
-        conteo = Cobros != null ? Cobros!.Count() : 0;
         StateHasChanged();
-
     }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error al obtener datos: {ex.Message}");
+    }
+}
+
 
 }
